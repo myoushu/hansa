@@ -10,6 +10,8 @@ import {
   validExtraOfficeLocations,
   validOfficeMarkerLocations,
   validOfficeMarkerLocationsForRoute,
+  getValidSwapPairs,
+  canSwapOfficePair,
 } from "./helpers";
 import { ActionName, ActionParams, PhaseContext, GameState, TokenState, Reward, ActionRecord } from "./model";
 
@@ -616,12 +618,39 @@ export const MarkerUseAction = (s: GameState, params: ActionParams<"marker-use">
   } else if (params.kind === "4 Actions") {
     // Do nothing, availableActionsCount checks if a marker has been played
   } else if (params.kind === "Swap") {
+    // Generate rewards for all valid office swaps across all cities
+    const rewards: Reward[] = [];
+    
+    for (const [cityName, cityState] of Object.entries(s.cities)) {
+      const swapPairs = getValidSwapPairs(s, cityName);
+      
+      for (const pair of swapPairs) {
+        rewards.push({
+          title: `Swap offices in ${cityName}`,
+          action: {
+            name: "marker-swap",
+            params: { city: cityName, office1: pair.office1, office2: pair.office2 },
+          },
+        });
+      }
+    }
+    
+    // If no valid swaps available, return to previous context
+    if (rewards.length === 0) {
+      s.log.push({
+        player: s.context.player,
+        message: `${getPlayer(s).name} cannot use Swap marker - no valid office pairs available`,
+      });
+      return s.context;
+    }
+    
     return {
       phase: "Swap",
       player: s.context.player,
       prev: s.context,
       hand: [],
       actions: [],
+      rewards,
     } as PhaseContext;
   } else if (params.kind === "Office") {
     throw new Error("Office marker can only be used during route completion");
@@ -634,27 +663,41 @@ export const MarkerUseAction = (s: GameState, params: ActionParams<"marker-use">
  */
 export const MarkerSwapAction = (s: GameState, params: ActionParams<"marker-swap">) => {
   const player = getPlayer(s);
-  const { city, office } = params;
-  const offices = s.cities[city].tokens;
+  const { city, office1, office2 } = params;
   
-  // Additional validation: ensure we're only swapping regular offices
-  if (office >= offices.length) {
-    throw new Error("Cannot swap: office index out of range for regular offices");
+  // Validate the swap is allowed
+  const validationError = canSwapOfficePair(s, city, office1, office2);
+  if (validationError) {
+    throw new Error(`Cannot swap offices: ${validationError}`);
   }
   
-  if (offices[office].owner !== s.context.player) {
-    throw new Error("Cannot swap: office is not owned by current player");
+  // Remove the Swap marker from ready markers and add to used markers
+  const markerIndex = player.readyMarkers.findIndex(m => m === "Swap");
+  if (markerIndex !== -1) {
+    const [marker] = player.readyMarkers.splice(markerIndex, 1);
+    player.usedMarkers.push(marker);
   }
   
-  const swapWith = office < offices.length - 1 ? office + 1 : office;
-  const temp = offices[swapWith];
-  offices[swapWith] = offices[office];
-  offices[office] = temp;
+  // Calculate the indices within the regular offices array
+  const cityState = s.cities[city];
+  const leftOfficeCount = cityState.leftOffices.length;
+  const extraCount = cityState.extras.length;
+  const regularOfficeStartIndex = leftOfficeCount + extraCount;
+  
+  const regularIndex1 = office1 - regularOfficeStartIndex;
+  const regularIndex2 = office2 - regularOfficeStartIndex;
+  
+  // Perform the swap within the regular offices array
+  const offices = cityState.tokens;
+  const temp = offices[regularIndex1];
+  offices[regularIndex1] = offices[regularIndex2];
+  offices[regularIndex2] = temp;
 
   s.log.push({
     player: s.context.player,
-    message: `${player.name} swaps their office in ${city}`,
+    message: `${player.name} uses Swap marker to switch two offices in ${city}`,
   });
+  
   return s.context.prev!;
 };
 

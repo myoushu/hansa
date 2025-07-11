@@ -459,15 +459,14 @@ const hasNoUpgradesLeft = (s: GameState) => {
 };
 
 const hasNoSwappableOffice = (s: GameState) => {
-  return Object.values(s.cities).some((cs) => {
-    const office = cs.tokens.findIndex((t) => t.owner === s.context.player);
-    if (office === -1 || office === cs.tokens.length - 1) {
-      return false;
+  // Check if any city has valid office pairs that can be swapped
+  for (const [cityName, cityState] of Object.entries(s.cities)) {
+    const swapPairs = getValidSwapPairs(s, cityName);
+    if (swapPairs.length > 0) {
+      return null; // Found valid swap pairs
     }
-    return true;
-  })
-    ? null
-    : "No office eligible for swapping";
+  }
+  return "No office pairs eligible for swapping";
 };
 
 const cantEstablishExtraOffice = (s: GameState) => {
@@ -500,6 +499,72 @@ const cantEstablishLeftOffice = (s: GameState, cityName: string) => {
   // Maximum 5 left offices
   if (cityState.leftOffices.length >= 5) {
     return "Maximum 5 left offices allowed per city";
+  }
+  
+  return null;
+};
+
+/**
+ * Returns all valid adjacent office pairs that can be swapped in a city
+ * Only includes regular offices (not left offices or extras)
+ */
+export const getValidSwapPairs = (s: GameState, cityName: string) => {
+  const cityState = s.cities[cityName];
+  const leftOfficeCount = cityState.leftOffices.length;
+  const extraCount = cityState.extras.length;
+  const regularOfficeCount = cityState.tokens.length;
+  
+  const pairs: Array<{ office1: number; office2: number }> = [];
+  
+  // Only consider regular offices (they start after left offices and extras)
+  const regularOfficeStartIndex = leftOfficeCount + extraCount;
+  
+  // Find adjacent pairs within regular offices
+  for (let i = 0; i < regularOfficeCount - 1; i++) {
+    const office1Index = regularOfficeStartIndex + i;
+    const office2Index = regularOfficeStartIndex + i + 1;
+    
+    pairs.push({
+      office1: office1Index,
+      office2: office2Index,
+    });
+  }
+  
+  return pairs;
+};
+
+/**
+ * Checks if an office index corresponds to a left office (extra office from Office marker)
+ */
+export const isLeftOfficeIndex = (s: GameState, cityName: string, index: number) => {
+  const leftOfficeCount = s.cities[cityName].leftOffices.length;
+  return index < leftOfficeCount;
+};
+
+/**
+ * Validates if two offices can be swapped
+ */
+export const canSwapOfficePair = (s: GameState, cityName: string, office1: number, office2: number) => {
+  const cityState = s.cities[cityName];
+  const leftOfficeCount = cityState.leftOffices.length;
+  const extraCount = cityState.extras.length;
+  const regularOfficeStartIndex = leftOfficeCount + extraCount;
+  
+  // Both offices must be regular offices (not left offices or extras)
+  if (office1 < regularOfficeStartIndex || office2 < regularOfficeStartIndex) {
+    return "Cannot swap left offices or extra offices";
+  }
+  
+  // Offices must be adjacent
+  if (Math.abs(office1 - office2) !== 1) {
+    return "Offices must be adjacent";
+  }
+  
+  // Both offices must exist
+  const regularOfficeCount = cityState.tokens.length;
+  const maxRegularIndex = regularOfficeStartIndex + regularOfficeCount - 1;
+  if (office1 > maxRegularIndex || office2 > maxRegularIndex) {
+    return "Office index out of range";
   }
   
   return null;
@@ -597,8 +662,8 @@ export const validateAction = <T extends ActionName>(name: T, s: GameState, para
       (kind === "Office" && cantUseOfficeMarker(s))
     );
   } else if (name === "marker-swap") {
-    const { city, office } = params as ActionParams<"marker-swap">;
-    return gamePhaseIsNot(s, ["Swap"]) || (canSwapOffice(s, city, office) ? null : "Can't swap that office");
+    const { city, office1, office2 } = params as ActionParams<"marker-swap">;
+    return gamePhaseIsNot(s, ["Swap"]) || canSwapOfficePair(s, city, office1, office2);
   } else if (name === "marker-office") {
     const { city } = params as ActionParams<"marker-office">;
     return gamePhaseIsNot(s, ["Route"]) || cantEstablishLeftOffice(s, city);

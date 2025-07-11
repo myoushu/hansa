@@ -55,7 +55,7 @@ export type ActionParams<T extends ActionName> = T extends "place" | "displace"
   : T extends "marker-use"
   ? { kind: BonusMarkerKind }
   : T extends "marker-swap"
-  ? { city: string; office: number }
+  ? { city: string; office1: number; office2: number }
   : T extends "marker-office"
   ? { city: string }
   : never;
@@ -78,6 +78,7 @@ export type Reward =
   | { title: string; action: ActionRecord<"route-office"> }
   | { title: string; action: ActionRecord<"route-upgrade"> }
   | { title: string; action: ActionRecord<"marker-office"> }
+  | { title: string; action: ActionRecord<"marker-swap"> }
   | { title: string; action: ActionRecord<"route-barrel"> };
 
 export type Office = {
