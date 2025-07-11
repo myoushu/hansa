@@ -48,7 +48,7 @@ function JoinGamePage() {
           setLastUpdate(Date.now());
           
           // Check if selected color is no longer available
-          const newTakenColors = newState.players.filter((p: PlayerState) => p.joined).map(p => p.color);
+          const newTakenColors = newState.players.filter((p: PlayerState) => p.joined).map((p: PlayerState) => p.color);
           const selectedColorStillAvailable = selectedColor && !newTakenColors.includes(selectedColor);
           
           if (selectedColor && !selectedColorStillAvailable) {
