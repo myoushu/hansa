@@ -1,11 +1,11 @@
-import { GameState, PlayerState, initGameState, Color, BonusMarkerKind, TokenState } from '../game/model'
+import { GameState, PlayerState, initGameStateWithPlayers, Color, BonusMarkerKind, TokenState } from '../game/model'
 import { Standard3P } from '../game/maps'
 
 /**
  * Creates a test game state with sensible defaults
  */
 export const createTestGameState = (overrides: Partial<GameState> = {}): GameState => {
-  const baseState = initGameState({ red: 'Player 1', blue: 'Player 2', green: 'Player 3' })
+  const baseState = initGameStateWithPlayers({ red: 'Player 1', blue: 'Player 2', green: 'Player 3' })
   return {
     ...baseState,
     ...overrides,
@@ -20,6 +20,7 @@ export const createTestPlayer = (color: Color, overrides: Partial<PlayerState> =
     id: `test-${color}`,
     name: `Test ${color}`,
     color,
+    joined: true,
     generalStock: { m: 5, t: 5 },
     personalSupply: { m: 2, t: 3 },
     keys: 2,

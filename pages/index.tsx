@@ -5,23 +5,14 @@ import { supabase } from "../src/supabase";
 
 function HomePage() {
   const router = useRouter();
-  const [players, setPlayers] = useState<{ [key in Color]?: string }>({});
-  const count = Object.values(players).filter((v) => v.trim()).length;
+  const [playerCount, setPlayerCount] = useState(3);
 
   const createGame = async () => {
-    const pls = { ...players };
-    for (const color of Object.keys(pls) as Color[]) {
-      pls[color] = (pls[color] || "").trim();
-      if (!pls[color]) {
-        delete pls[color];
-      }
-    }
-
-    if (Object.keys(pls).length < 3) {
+    if (playerCount < 3 || playerCount > 5) {
       return;
     }
 
-    const game = initGameState(pls);
+    const game = initGameState(playerCount);
     const { data, error } = await supabase.from("games").upsert([
       {
         id: game.id,
@@ -39,52 +30,25 @@ function HomePage() {
   return (
     <div className="center">
       <h1>Hansa Teutonica Online</h1>
-      <p>To create a new game, enter the names of at least 3 players.</p>
+      <p>Create a new game and share the link with your friends to play together!</p>
 
       <div className="player-conf">
-        <span>Red</span>
-        <input
-          maxLength={8}
-          value={players.red || ""}
-          onChange={(e) => setPlayers({ ...players, red: e.currentTarget.value })}
-        />
+        <span>Number of players:</span>
+        <select 
+          value={playerCount} 
+          onChange={(e) => setPlayerCount(parseInt(e.target.value))}
+        >
+          <option value={3}>3 players</option>
+          <option value={4}>4 players</option>
+          <option value={5}>5 players</option>
+        </select>
       </div>
-      <div className="player-conf">
-        <span>Blue</span>
-        <input
-          maxLength={8}
-          value={players.blue || ""}
-          onChange={(e) => setPlayers({ ...players, blue: e.currentTarget.value })}
-        />
-      </div>
-      <div className="player-conf">
-        <span>Green</span>
-        <input
-          maxLength={8}
-          value={players.green || ""}
-          onChange={(e) => setPlayers({ ...players, green: e.currentTarget.value })}
-        />
-      </div>
-      <div className="player-conf">
-        <span>Yellow</span>
-        <input
-          maxLength={8}
-          value={players.yellow || ""}
-          onChange={(e) => setPlayers({ ...players, yellow: e.currentTarget.value })}
-        />
-      </div>
-      <div className="player-conf">
-        <span>Purple</span>
-        <input
-          maxLength={8}
-          value={players.purple || ""}
-          onChange={(e) => setPlayers({ ...players, purple: e.currentTarget.value })}
-        />
-      </div>
+      
       <div>
         <br />
-        {count > 2 && <button onClick={createGame}>Create a {count}-player game</button>}
+        <button onClick={createGame}>Create a {playerCount}-player game</button>
       </div>
+      
       <h2>Report bugs here</h2>
       <a href="https://github.com/skid/hansa">https://github.com/skid/hansa</a>
     </div>

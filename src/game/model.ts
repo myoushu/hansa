@@ -160,6 +160,7 @@ export type PlayerState = {
   id: string;
   name: string;
   color: Color;
+  joined: boolean;
   generalStock: { m: number; t: number };
   personalSupply: { m: number; t: number };
   keys: number;
@@ -258,13 +259,15 @@ export const initMapState = (map: GameMap): Pick<GameState, "cities" | "routes">
   };
 };
 
-export const initGameState = (players: { [key in Color]?: string }): GameState => {
-  const map = Object.keys(players).length > 3 ? Standard4P : Standard3P;
+export const initGameState = (maxPlayers: number): GameState => {
+  const map = maxPlayers > 3 ? Standard4P : Standard3P;
+  const colors: Color[] = ["red", "blue", "green", "yellow", "purple"];
   let shuffledPlayers = shuffle(
-    (Object.keys(players) as Color[]).map((color) => ({
+    colors.slice(0, maxPlayers).map((color) => ({
       id: v4(),
       color,
-      name: players[color]!,
+      name: "",
+      joined: false,
       generalStock: { m: 0, t: 7 },
       personalSupply: { m: 1, t: 4 },
       keys: 1,
@@ -318,4 +321,19 @@ export const initGameState = (players: { [key in Color]?: string }): GameState =
     map,
     ...initMapState(map),
   };
+};
+
+export const initGameStateWithPlayers = (players: { [key in Color]?: string }): GameState => {
+  const game = initGameState(Object.keys(players).length);
+  const playerNames = Object.entries(players);
+  
+  playerNames.forEach(([color, name], index) => {
+    const player = game.players.find(p => p.color === color);
+    if (player && name) {
+      player.name = name;
+      player.joined = true;
+    }
+  });
+  
+  return game;
 };

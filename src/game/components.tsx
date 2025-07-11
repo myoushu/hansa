@@ -1,5 +1,5 @@
 import React, { MouseEventHandler, useContext, useEffect, useRef, useState } from "react";
-import { BonusMarkerKind, City, Color, initGameState, Office, PlayerState } from "./model";
+import { BonusMarkerKind, City, Color, initGameStateWithPlayers, Office, PlayerState } from "./model";
 import {
   availableActionsCount,
   canEndTurn,
@@ -101,7 +101,7 @@ const usePanZoom = (rebind = false) => {
 /**
  * Renders just the map, for development purposes
  */
-const testState = initGameState({ red: "red", green: "green", blue: "blue" });
+const testState = initGameStateWithPlayers({ red: "red", green: "green", blue: "blue" });
 export const Map = () => {
   const { groupRef, svgRef, scale, x, y, panStart, pan, panEnd, zoom } = usePanZoom();
   const { map } = testState;
