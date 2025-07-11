@@ -121,6 +121,7 @@ export type RouteState = {
 export type CityState = {
   tokens: TokenState[];
   extras: TokenState[];
+  leftOffices: TokenState[];
 };
 
 /**
@@ -248,7 +249,7 @@ const shuffle = <T>(array: T[]) => {
 export const initMapState = (map: GameMap): Pick<GameState, "cities" | "routes"> => {
   const markers: BonusMarkerKind[] = shuffle(["Swap", "Move 3", "Office"]);
   return {
-    cities: Object.fromEntries(Object.entries(map.cities).map(([name, _data]) => [name, { tokens: [], extras: [] }])),
+    cities: Object.fromEntries(Object.entries(map.cities).map(([name, _data]) => [name, { tokens: [], extras: [], leftOffices: [] }])),
     routes: map.routes.map((r) => ({
       tokens: Array.from(Array(r.posts)).map(() => null),
       marker: r.tavern ? markers.shift() : undefined,

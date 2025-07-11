@@ -279,10 +279,29 @@ export const cityOwner = (s: GameState, cityName: string) => {
 
   let owner = -1;
   let counts = s.players.map((_) => 0);
+  let leftCounts = s.players.map((_) => 0);
+  
+  // Count regular offices and extras first (highest priority)
   for (const t of [...c.extras, ...c.tokens]) {
     counts[t.owner] += 1;
-    if (t.owner !== owner && counts[t.owner] >= (counts[owner] || 0)) {
+    if (t.owner !== owner && counts[t.owner] > (counts[owner] || 0)) {
       owner = t.owner;
+    }
+  }
+  
+  // Count left offices separately (lowest priority for control disputes)
+  for (const t of c.leftOffices) {
+    leftCounts[t.owner] += 1;
+  }
+  
+  // If there's a tie in regular offices, left offices don't break the tie
+  // Left offices only count if no one has regular offices, or to break ties at 0
+  if (owner === -1 || counts[owner] === 0) {
+    for (let i = 0; i < leftCounts.length; i++) {
+      const totalCount = counts[i] + leftCounts[i];
+      if (totalCount > (counts[owner] + leftCounts[owner] || 0)) {
+        owner = i;
+      }
     }
   }
 
@@ -319,6 +338,54 @@ export const validExtraOfficeLocations = (s: GameState) => {
     }
   }
   return cities;
+};
+
+/**
+ * Returns all cities where the Office bonus marker can be used for a specific route.
+ * The Office marker allows placing offices "to the left" of existing offices.
+ * Requirements:
+ * - City must be adjacent to the specified route (from or to city)
+ * - City must have at least one existing office (any player)
+ * - City must have fewer than 5 left offices already placed
+ */
+export const validOfficeMarkerLocationsForRoute = (s: GameState, routeIndex: number) => {
+  const cities: string[] = [];
+  const route = s.map.routes[routeIndex];
+  
+  // Check both cities connected to the route
+  const candidateCities = [route.from, route.to];
+  
+  for (const cityName of candidateCities) {
+    const cityState = s.cities[cityName];
+    // City must have at least one existing office and room for left offices
+    if (cityState.tokens.length > 0 && cityState.leftOffices.length < 5) {
+      cities.push(cityName);
+    }
+  }
+  
+  return cities;
+};
+
+/**
+ * Returns all cities where the Office bonus marker can be used during route completion.
+ * This version works when already in Route phase and looks up the completed route.
+ */
+export const validOfficeMarkerLocations = (s: GameState) => {
+  const cities: string[] = [];
+  
+  // Office marker can only be used during route completion
+  if (s.context.phase !== "Route") {
+    return cities;
+  }
+  
+  // Find the completed route from the previous context actions
+  const routeAction = s.context.prev?.actions.find(a => a.name === "route");
+  if (!routeAction) {
+    return cities;
+  }
+  
+  const routeIndex = (routeAction.params as ActionParams<"route">).route;
+  return validOfficeMarkerLocationsForRoute(s, routeIndex);
 };
 
 /**
@@ -404,7 +471,38 @@ const hasNoSwappableOffice = (s: GameState) => {
 };
 
 const cantEstablishExtraOffice = (s: GameState) => {
-  validExtraOfficeLocations(s).length === 0 ? "You haven't established any offices this turn" : null;
+  return validExtraOfficeLocations(s).length === 0 ? "You haven't established any offices this turn" : null;
+};
+
+/**
+ * Validates if the Office marker can be used (only during route completion)
+ */
+const cantUseOfficeMarker = (s: GameState) => {
+  if (s.context.phase !== "Route") {
+    return "Office marker can only be used during route completion";
+  }
+  return validOfficeMarkerLocations(s).length === 0 ? "No cities available for office placement" : null;
+};
+
+/**
+ * Validates if a left office can be placed in a specific city
+ * Used when the Office marker is being used to place an office
+ */
+const cantEstablishLeftOffice = (s: GameState, cityName: string) => {
+  const city = s.map.cities[cityName];
+  const cityState = s.cities[cityName];
+  
+  // Must have at least one existing office in the city
+  if (cityState.tokens.length === 0) {
+    return "City must have at least one existing office";
+  }
+  
+  // Maximum 5 left offices
+  if (cityState.leftOffices.length >= 5) {
+    return "Maximum 5 left offices allowed per city";
+  }
+  
+  return null;
 };
 
 const insufficientPrivilegeForCity = (s: GameState, cityName: string) => {
@@ -496,13 +594,14 @@ export const validateAction = <T extends ActionName>(name: T, s: GameState, para
       gamePhaseIsNot(s, ["Actions"]) ||
       (kind === "Upgrade" && hasNoUpgradesLeft(s)) ||
       (kind === "Swap" && hasNoSwappableOffice(s)) ||
-      (kind === "Office" && cantEstablishExtraOffice(s))
+      (kind === "Office" && cantUseOfficeMarker(s))
     );
   } else if (name === "marker-swap") {
     const { city, office } = params as ActionParams<"marker-swap">;
     return gamePhaseIsNot(s, ["Swap"]) || (canSwapOffice(s, city, office) ? null : "Can't swap that office");
   } else if (name === "marker-office") {
-    gamePhaseIsNot(s, ["Office"]);
+    const { city } = params as ActionParams<"marker-office">;
+    return gamePhaseIsNot(s, ["Route"]) || cantEstablishLeftOffice(s, city);
   } else if (name === "done") {
     // TODO: validate
   }

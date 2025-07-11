@@ -8,6 +8,8 @@ import {
   getPost,
   incomeValue,
   validExtraOfficeLocations,
+  validOfficeMarkerLocations,
+  validOfficeMarkerLocationsForRoute,
 } from "./helpers";
 import { ActionName, ActionParams, PhaseContext, GameState, TokenState, Reward, ActionRecord } from "./model";
 
@@ -350,6 +352,17 @@ export const RouteAction = (s: GameState, params: ActionParams<"route">) => {
     });
   }
 
+  // Add Office marker rewards if player has the marker ready
+  if (getPlayer(s).readyMarkers.includes("Office")) {
+    const officeCities = validOfficeMarkerLocationsForRoute(s, params.route);
+    for (const city of officeCities) {
+      rewards.push({
+        title: `Use Office marker in ${city}`,
+        action: { name: "marker-office", params: { city } },
+      });
+    }
+  }
+
   // Collect bonus markers
   let endGame = false;
   if (r.marker) {
@@ -611,20 +624,7 @@ export const MarkerUseAction = (s: GameState, params: ActionParams<"marker-use">
       actions: [],
     } as PhaseContext;
   } else if (params.kind === "Office") {
-    return {
-      phase: "Office",
-      player: s.context.player,
-      prev: s.context,
-      hand: [],
-      actions: [],
-      rewards: validExtraOfficeLocations(s).map((city) => ({
-        title: `Establish an extra office in ${city}`,
-        action: {
-          name: "marker-office",
-          params: { city },
-        },
-      })),
-    } as PhaseContext;
+    throw new Error("Office marker can only be used during route completion");
   }
   return s.context;
 };
@@ -654,26 +654,49 @@ export const MarkerSwapAction = (s: GameState, params: ActionParams<"marker-swap
  */
 export const MarkerOfficeAction = (s: GameState, params: ActionParams<"marker-office">) => {
   const player = getPlayer(s);
-  const { generalStock, personalSupply } = player;
-  let merch = false;
-
-  if (generalStock.t) {
-    generalStock.t -= 1;
-  } else if (generalStock.m) {
-    generalStock.m -= 1;
-    merch = true;
-  } else if (personalSupply.t) {
-    personalSupply.t -= 1;
-  } else if (personalSupply.m) {
-    personalSupply.m -= 1;
+  
+  // Remove the Office marker from ready markers and add to used markers
+  const markerIndex = player.readyMarkers.findIndex(m => m === "Office");
+  if (markerIndex !== -1) {
+    const [marker] = player.readyMarkers.splice(markerIndex, 1);
+    player.usedMarkers.push(marker);
+  }
+  
+  // Use a token from the route completion (must have tokens in hand)
+  if (s.context.hand.length === 0) {
+    throw new Error("No tokens available from route completion");
+  }
+  
+  // Determine which token type to use based on route composition
+  // Rule: Use square tokens (tradesmen) unless route was completed entirely with disc tokens (merchants)
+  const merchants = s.context.hand.filter(t => t.token === "m").length;
+  const tradesmen = s.context.hand.filter(t => t.token === "t").length;
+  
+  let token;
+  let merch;
+  
+  if (tradesmen > 0) {
+    // Route had tradesmen, so use a tradesman token (square marker)
+    const tokenIndex = s.context.hand.findIndex(t => t.token === "t");
+    token = s.context.hand.splice(tokenIndex, 1)[0];
+    merch = false;
+  } else {
+    // Route was entirely merchants, so use a merchant token (disc marker)
+    token = s.context.hand.shift()!;
     merch = true;
   }
+  
+  // Return remaining tokens to general stock
+  for (const t of s.context.hand) {
+    player.generalStock[t.token] += 1;
+  }
+  s.context.hand = [];
 
-  // Extra offices are added from the left
-  s.cities[params.city].extras.unshift({ owner: s.context.player, merch });
+  // Left offices are added to the left side of the city
+  s.cities[params.city].leftOffices.push({ owner: s.context.player, merch });
   s.log.push({
     player: s.context.player,
-    message: `${player.name} sets up an extra office in ${params.city}`,
+    message: `${player.name} uses Office marker to place an office to the left in ${params.city}`,
   });
 
   if (!player.linkEastWest && areCitiesLinked(s, "Arnheim", "Stendal", s.context.player)) {

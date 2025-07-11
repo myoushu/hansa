@@ -376,8 +376,25 @@ export const OfficeComponent = ({ office, order, city }: { office: Office | null
 
   const { state, action } = useContext(ControllerContext).controller;
 
-  const index = office !== null ? city.offices.indexOf(office) : order;
-  const token = office !== null ? state.cities[city.name].tokens[index] : state.cities[city.name].extras[index];
+  const leftOffices = state.cities[city.name].leftOffices;
+  const isLeftOffice = order < leftOffices.length && office === null;
+  
+  let index: number;
+  let token: any;
+  
+  if (isLeftOffice) {
+    // Left office - order is directly the index
+    index = order;
+    token = leftOffices[index];
+  } else if (office !== null) {
+    // Regular city office
+    index = city.offices.indexOf(office);
+    token = state.cities[city.name].tokens[index];
+  } else {
+    // Extra office
+    index = order - leftOffices.length;
+    token = state.cities[city.name].extras[index];
+  }
 
   const claim = () => {
     if (index === state.cities[city.name].tokens.length) {
@@ -392,7 +409,7 @@ export const OfficeComponent = ({ office, order, city }: { office: Office | null
   };
 
   return (
-    <g onClick={onClick}>
+    <g onClick={onClick} className={isLeftOffice ? "left-office" : ""}>
       {office &&
         (office.merch ? (
           <circle
@@ -400,7 +417,7 @@ export const OfficeComponent = ({ office, order, city }: { office: Office | null
             cy={top + OfficeWidth / 2}
             r={OfficeWidth / 2}
             fill={PrivilegeColorMap[office.color]}
-            stroke="black"
+            stroke={isLeftOffice ? "#0066FF" : "black"}
             strokeWidth="2"
             onClick={claim}
           />
@@ -412,7 +429,7 @@ export const OfficeComponent = ({ office, order, city }: { office: Office | null
             height={OfficeWidth}
             rx="1"
             fill={PrivilegeColorMap[office.color]}
-            stroke="black"
+            stroke={isLeftOffice ? "#0066FF" : "black"}
             strokeWidth="2"
             onClick={claim}
           />
@@ -457,7 +474,8 @@ export const CityComponent = ({ cityName }: { cityName: string }) => {
   const { state } = controller;
   const city = state.map.cities[cityName];
   const extras = state.cities[cityName].extras;
-  const cityWidth = (city.offices.length + extras.length) * (OfficeWidth + Margin) + Margin;
+  const leftOffices = state.cities[cityName].leftOffices;
+  const cityWidth = leftOffices.length * (OfficeWidth + Margin) + (city.offices.length + extras.length) * (OfficeWidth + Margin) + Margin;
   const x = city.position[0] - cityWidth / 2;
   const y = city.position[1] - (CityHeight + FontSize / 2) / 2;
 
@@ -474,11 +492,14 @@ export const CityComponent = ({ cityName }: { cityName: string }) => {
           stroke={owner ? playerColor(owner.color) : "black"}
           strokeWidth="3"
         />
+        {leftOffices.map((token, i) => (
+          <OfficeComponent key={`left-${i}`} office={null} order={i} city={city} />
+        ))}
         {extras.map((token, i) => (
-          <OfficeComponent key={i} office={null} order={i} city={city} />
+          <OfficeComponent key={`extra-${i}`} office={null} order={leftOffices.length + i} city={city} />
         ))}
         {city.offices.map((office, i) => (
-          <OfficeComponent key={i} office={office} order={extras.length + i} city={city} />
+          <OfficeComponent key={`office-${i}`} office={office} order={leftOffices.length + extras.length + i} city={city} />
         ))}
       </g>
       <text
@@ -533,7 +554,8 @@ export const RouteComponent = ({
   const { from: fromCityName, to: toCityName } = state.map.routes[index];
   const fromCity = state.map.cities[fromCityName];
   const fromExtras = state.cities[fromCityName].extras;
-  const fromCityWidth = (fromCity.offices.length + fromExtras.length) * OfficeWidth + 2 * Margin;
+  const fromLeftOffices = state.cities[fromCityName].leftOffices;
+  const fromCityWidth = fromLeftOffices.length * (OfficeWidth + Margin) + (fromCity.offices.length + fromExtras.length) * (OfficeWidth + Margin) + Margin;
   const fromCityRect = {
     x: fromCity.position[0] - fromCityWidth / 2,
     y: fromCity.position[1] - CityHeight / 2,
@@ -542,7 +564,8 @@ export const RouteComponent = ({
   };
   const toCity = state.map.cities[toCityName];
   const toExtras = state.cities[toCityName].extras;
-  const toCityWidth = (toCity.offices.length + toExtras.length) * OfficeWidth + 2 * Margin;
+  const toLeftOffices = state.cities[toCityName].leftOffices;
+  const toCityWidth = toLeftOffices.length * (OfficeWidth + Margin) + (toCity.offices.length + toExtras.length) * (OfficeWidth + Margin) + Margin;
   const toCityRect = {
     x: toCity.position[0] - toCityWidth / 2,
     y: toCity.position[1] - CityHeight / 2,
