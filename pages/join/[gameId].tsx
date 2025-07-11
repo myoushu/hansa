@@ -109,8 +109,16 @@ function JoinGamePage() {
 
       const freshGameState = JSON.parse(freshData[0].state);
       
+      // Check if the game is already full
+      const freshJoinedPlayers = freshGameState.players.filter((p: PlayerState) => p.joined);
+      if (freshJoinedPlayers.length >= freshGameState.players.length) {
+        setError("Game is full. All player slots have been taken.");
+        setGameState(freshGameState); // Update to fresh state
+        return;
+      }
+      
       // Check if the selected color is still available
-      const freshTakenColors = freshGameState.players.filter((p: PlayerState) => p.joined).map((p: PlayerState) => p.color);
+      const freshTakenColors = freshJoinedPlayers.map((p: PlayerState) => p.color);
       if (freshTakenColors.includes(selectedColor)) {
         setError(`The ${selectedColor} color is no longer available. Another player just joined with that color.`);
         setSelectedColor(undefined);
@@ -121,11 +129,15 @@ function JoinGamePage() {
       // Color is still available, find an empty slot and assign the color
       const updatedState = { ...freshGameState };
       const emptyPlayer = updatedState.players.find((p: PlayerState) => !p.joined);
-      if (emptyPlayer) {
-        emptyPlayer.name = playerName.trim();
-        emptyPlayer.joined = true;
-        emptyPlayer.color = selectedColor;
+      if (!emptyPlayer) {
+        setError("No empty player slots available. Game is full.");
+        setGameState(freshGameState); // Update to fresh state
+        return;
       }
+
+      emptyPlayer.name = playerName.trim();
+      emptyPlayer.joined = true;
+      emptyPlayer.color = selectedColor;
 
       const { error } = await supabase
         .from("games")

@@ -31,8 +31,18 @@ export const useController = (gameId: string, playerId: string): GameController 
         .then(({ data, error }) => {
           if (error) {
             console.log(error);
+            setErrorMessage("Failed to load game");
           } else {
             const game = JSON.parse(data[0].state);
+            
+            // Validate that the player ID exists in the game state
+            const playerExists = game.players.some((p: any) => p.id === playerId);
+            if (!playerExists) {
+              console.log(`Player ID ${playerId} not found in game state`);
+              setErrorMessage("Invalid player. This player is not part of this game.");
+              return;
+            }
+            
             setState(game);
             setOriginalState(game);
           }
@@ -45,15 +55,30 @@ export const useController = (gameId: string, playerId: string): GameController 
       supabase
         .from(`games:id=eq.${gameId}`)
         .on("UPDATE", (update) => {
-          setState(update.new.state);
-          setOriginalState(update.new.state);
+          try {
+            const newState = update.new.state;
+            
+            // Validate that the player ID still exists in the updated game state
+            const playerExists = newState.players.some((p: any) => p.id === playerId);
+            if (!playerExists) {
+              console.log(`Player ID ${playerId} no longer exists in updated game state`);
+              setErrorMessage("You are no longer part of this game.");
+              return;
+            }
+            
+            setState(newState);
+            setOriginalState(newState);
+          } catch (error) {
+            console.error("Error processing game state update:", error);
+            setErrorMessage("Failed to process game update");
+          }
         })
         .subscribe();
       return () => {
         supabase.removeAllSubscriptions();
       };
     }
-  }, [gameId]);
+  }, [gameId, playerId]);
 
   if (typeof window !== "undefined") {
     (window as any).hansa = immutableState;
@@ -78,6 +103,13 @@ export const useController = (gameId: string, playerId: string): GameController 
   const action: Action = useCallback(
     (name, params) => {
       setState((immutableState) => {
+        // Validate that the player exists in the game state
+        if (!immutableState || !immutableState.players.some(p => p.id === playerId)) {
+          console.log(`Action blocked: Player ID ${playerId} not found in game state`);
+          setErrorMessage("Invalid player. You are not part of this game.");
+          return immutableState;
+        }
+        
         if (getPlayer(immutableState!).id !== playerId) {
           return immutableState;
         }
