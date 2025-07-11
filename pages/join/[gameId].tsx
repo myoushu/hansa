@@ -110,7 +110,7 @@ function JoinGamePage() {
       const freshGameState = JSON.parse(freshData[0].state);
       
       // Check if the selected color is still available
-      const freshTakenColors = freshGameState.players.filter((p: PlayerState) => p.joined).map(p => p.color);
+      const freshTakenColors = freshGameState.players.filter((p: PlayerState) => p.joined).map((p: PlayerState) => p.color);
       if (freshTakenColors.includes(selectedColor)) {
         setError(`The ${selectedColor} color is no longer available. Another player just joined with that color.`);
         setSelectedColor(undefined);

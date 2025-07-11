@@ -87,7 +87,7 @@ describe('Extra Office Edge Cases and Integration', () => {
       state.players[0].points = 19
       
       // Mock the east-west connection to award 1+ points
-      state.players[0].linkEastWest = false
+      delete state.players[0].linkEastWest
       
       state = createOfficePhaseState([cityName], [
         { token: 't', owner: 0 }
