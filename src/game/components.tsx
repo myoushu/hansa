@@ -403,7 +403,8 @@ export const OfficeComponent = ({ office, order, city }: { office: Office | null
   };
 
   const onClick = () => {
-    if (office !== null && canSwapOffice(state, city.name, index)) {
+    // Only allow swapping on regular offices (not left offices or extras)
+    if (office !== null && !isLeftOffice && canSwapOffice(state, city.name, index)) {
       action("marker-swap", { city: city.name, office: index });
     }
   };

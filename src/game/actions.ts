@@ -636,6 +636,16 @@ export const MarkerSwapAction = (s: GameState, params: ActionParams<"marker-swap
   const player = getPlayer(s);
   const { city, office } = params;
   const offices = s.cities[city].tokens;
+  
+  // Additional validation: ensure we're only swapping regular offices
+  if (office >= offices.length) {
+    throw new Error("Cannot swap: office index out of range for regular offices");
+  }
+  
+  if (offices[office].owner !== s.context.player) {
+    throw new Error("Cannot swap: office is not owned by current player");
+  }
+  
   const swapWith = office < offices.length - 1 ? office + 1 : office;
   const temp = offices[swapWith];
   offices[swapWith] = offices[office];
