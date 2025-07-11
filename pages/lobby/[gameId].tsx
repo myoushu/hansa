@@ -7,7 +7,6 @@ import { supabase } from "~src/supabase";
 function LobbyPage() {
   const router = useRouter();
   const [state, setState] = useState<GameState>();
-  const [gameStarted, setGameStarted] = useState(false);
 
   useEffect(() => {
     if (!router.query.gameId) {
@@ -58,13 +57,7 @@ function LobbyPage() {
   }
 
   const joinedPlayers = state.players.filter(p => p.joined);
-  const allPlayersJoined = joinedPlayers.length === state.players.length;
   const joinUrl = `${typeof location !== 'undefined' ? location.protocol + '//' + location.host : ''}/join/${state.id}`;
-
-  const startGame = () => {
-    setGameStarted(true);
-    // For now, just show links. Later we could add a "game started" flag to state
-  };
 
   return (
     <div className="center">
@@ -126,26 +119,7 @@ function LobbyPage() {
         ))}
       </div>
 
-      {allPlayersJoined && !gameStarted && (
-        <div style={{ marginBottom: '2rem' }}>
-          <button 
-            onClick={startGame}
-            style={{ 
-              padding: '1rem 2rem', 
-              fontSize: '1.2rem',
-              background: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer'
-            }}
-          >
-            Start Game
-          </button>
-        </div>
-      )}
-
-      {(gameStarted || allPlayersJoined) && (
+      {joinedPlayers.length > 0 && (
         <div>
           <h3>Player Game Links:</h3>
           <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>

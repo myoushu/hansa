@@ -5,6 +5,9 @@
   "main": "index.js",
   "author": "Dushko Jordanovski <jordanovskid@gmail.com>",
   "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  },
   "devDependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",

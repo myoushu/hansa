@@ -48,9 +48,8 @@ function JoinGamePage() {
           setLastUpdate(Date.now());
           
           // Check if selected color is no longer available
-          const selectedColorStillAvailable = newState.players.some(
-            (p: PlayerState) => p.color === selectedColor && !p.joined
-          );
+          const newTakenColors = newState.players.filter((p: PlayerState) => p.joined).map(p => p.color);
+          const selectedColorStillAvailable = selectedColor && !newTakenColors.includes(selectedColor);
           
           if (selectedColor && !selectedColorStillAvailable) {
             setSelectedColor(undefined);
@@ -67,8 +66,10 @@ function JoinGamePage() {
     };
   }, [router.query.gameId, selectedColor]);
 
-  const availableColors = gameState?.players.filter((p: PlayerState) => !p.joined) || [];
+  const allColors: Color[] = ["red", "blue", "green", "yellow", "purple"];
   const joinedPlayers = gameState?.players.filter((p: PlayerState) => p.joined) || [];
+  const takenColors = joinedPlayers.map(p => p.color);
+  const availableColors = allColors.filter(color => !takenColors.includes(color));
 
   const refreshGameState = async () => {
     if (!router.query.gameId) return;
@@ -109,20 +110,21 @@ function JoinGamePage() {
       const freshGameState = JSON.parse(freshData[0].state);
       
       // Check if the selected color is still available
-      const selectedPlayer = freshGameState.players.find((p: PlayerState) => p.color === selectedColor);
-      if (!selectedPlayer || selectedPlayer.joined) {
+      const freshTakenColors = freshGameState.players.filter((p: PlayerState) => p.joined).map(p => p.color);
+      if (freshTakenColors.includes(selectedColor)) {
         setError(`The ${selectedColor} color is no longer available. Another player just joined with that color.`);
         setSelectedColor(undefined);
         setGameState(freshGameState); // Update to fresh state
         return;
       }
 
-      // Color is still available, proceed with joining
+      // Color is still available, find an empty slot and assign the color
       const updatedState = { ...freshGameState };
-      const player = updatedState.players.find((p: PlayerState) => p.color === selectedColor);
-      if (player) {
-        player.name = playerName.trim();
-        player.joined = true;
+      const emptyPlayer = updatedState.players.find((p: PlayerState) => !p.joined);
+      if (emptyPlayer) {
+        emptyPlayer.name = playerName.trim();
+        emptyPlayer.joined = true;
+        emptyPlayer.color = selectedColor;
       }
 
       const { error } = await supabase
@@ -135,7 +137,7 @@ function JoinGamePage() {
         setError("Failed to join game. Please try again.");
       } else {
         // Redirect to the game
-        router.push(`/play/${gameState.id}/${player?.id}`);
+        router.push(`/play/${gameState.id}/${emptyPlayer?.id}`);
       }
     } catch (err) {
       setError("Failed to join game. Please try again.");
@@ -240,9 +242,9 @@ function JoinGamePage() {
           }}
         >
           <option value="">Select a color</option>
-          {availableColors.map((player: PlayerState) => (
-            <option key={player.id} value={player.color}>
-              {player.color.charAt(0).toUpperCase() + player.color.slice(1)}
+          {availableColors.map((color: Color) => (
+            <option key={color} value={color}>
+              {color.charAt(0).toUpperCase() + color.slice(1)}
             </option>
           ))}
         </select>
