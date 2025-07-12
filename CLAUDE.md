@@ -23,6 +23,18 @@ yarn start
 
 # Run linter
 yarn lint
+
+# Run TypeScript type checking
+yarn type-check
+
+# Run tests
+yarn test
+
+# Run tests with UI
+yarn test:ui
+
+# Run tests with coverage
+yarn test:coverage
 ```
 
 ## Architecture
@@ -75,4 +87,5 @@ yarn lint
 - Player moves overwrite shared state without validation
 - Console debugging is expected (`window.hansa` exposes game state)
 - Graphics are implemented using React SVG components
-- No test framework is currently configured
+- **Testing**: Vitest with jsdom environment and Testing Library
+- Test files located in `src/__tests__/` with comprehensive game mechanics coverage
